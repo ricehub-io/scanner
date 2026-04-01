@@ -2,9 +2,11 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -79,21 +81,45 @@ var suspiciousPatterns = []string{
 
 	// fork bombs
 	`:\(\)\s*\{\s*:\|\:&\s*\};:`,
+
+	// for testing
+	`my-test-pattern`,
 }
+
+// TODO: check https://github.com/hashicorp/go-set - sets generally have better access times
+var shellExtensions = map[string]bool{
+	".sh": true, ".bash": true, ".zsh": true,
+	".fish": true, ".py": true, ".pl": true,
+}
+
+const maxUncompressedSize = 1024 * 1024 * 100 // 100MB
 
 type ZipFile struct {
 	Name    string
 	Content []byte
 }
 
+func (f ZipFile) isScript() bool {
+	if shellExtensions[filepath.Ext(f.Name)] {
+		return true
+	}
+	// fallback: check for shebang
+	return bytes.HasPrefix(f.Content, []byte("#!/"))
+}
+
 // TODO: normalize files before scan (remove comments, collapse whitespaces, resolve simple encodings, lowercase everything)
 // TODO(?): score system to reduce false-positives
 func main() {
-	const file = "./test_data/archived_both.zip"
+	const file = "./test_data/all.zip"
 	files, err := safeUnzip(file)
 	if err != nil {
 		log.Fatalf("Failed to safely unzip file: %v", err)
 	}
+
+	if virusName, ret := clamavScan(file); ret != nil {
+		log.Printf("ClamAV detected: %s", virusName)
+	}
+
 	if matched := staticAnalysis(files); len(matched) > 0 {
 		log.Printf("Static analysis detected: %v", matched)
 	}
@@ -123,7 +149,7 @@ func clamavScan(filePath string) (virusName string, ret error) {
 		log.Fatalf("Failed to compile clamav engine: %v", err)
 	}
 
-	c.EngineSetNum(clamav.CL_ENGINE_MAX_SCANSIZE, 1024*1024*50)
+	c.EngineSetNum(clamav.CL_ENGINE_MAX_SCANSIZE, maxUncompressedSize)
 	c.EngineSetNum(clamav.CL_ENGINE_MAX_SCANTIME, 9000)
 
 	_, virusName, ret = c.ScanFile(filePath)
@@ -131,10 +157,7 @@ func clamavScan(filePath string) (virusName string, ret error) {
 }
 
 func safeUnzip(filePath string) ([]ZipFile, error) {
-	const (
-		maxUncompressedSize = 1024 * 1024 * 50 // 50MB
-		maxFiles            = 1000
-	)
+	const maxFiles = 1000
 
 	r, err := zip.OpenReader(filePath)
 	if err != nil {
@@ -183,7 +206,10 @@ func staticAnalysis(files []ZipFile) []string {
 	var wg sync.WaitGroup
 
 	for _, f := range files {
-		// TODO: check if file is a script
+		if !f.isScript() {
+			continue
+		}
+
 		wg.Go(func() {
 			for _, pattern := range suspiciousPatterns {
 				matched, _ := regexp.MatchString(pattern, string(f.Content))
