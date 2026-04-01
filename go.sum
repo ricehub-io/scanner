@@ -1,0 +1,4 @@
+github.com/ca110us/go-clamav v0.6.0 h1:f8h/5Z9rJbSRFrmeZsAJCpJZ+6DVGBYw1fufvuc+oQA=
+github.com/ca110us/go-clamav v0.6.0/go.mod h1:6kMDtag0KOIuKxfoArtCRCATCYr1inVLGatSXp9xm1s=
+github.com/ca110us/go-clamav v0.6.1-0.20250701152106-722044c5f43c h1:+0GtUkIIU8L+y7qJnAgqSvEddn2vDoNmi/ruPQGwfi0=
+github.com/ca110us/go-clamav v0.6.1-0.20250701152106-722044c5f43c/go.mod h1:6kMDtag0KOIuKxfoArtCRCATCYr1inVLGatSXp9xm1s=
