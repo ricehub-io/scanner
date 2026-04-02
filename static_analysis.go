@@ -7,10 +7,17 @@ import (
 	"sync"
 )
 
-// staticAnalysis takes a slice of zip files and performs
-// a static analysis on any script file.
+var (
+	whitespacesPattern         = regexp.MustCompile(`\s+`)
+	expandVariablesPattern     = regexp.MustCompile(`(\w+)=["']?([^"'\s]+)["']?`)
+	normalizeSeparatorsPattern = regexp.MustCompile(`(;|&&|\|\|)`)
+	base64Pattern              = regexp.MustCompile(`(?i)[a-z0-9+/=]{20,}`)
+)
+
+// staticAnalysis scans script files within the given zip files for
+// suspicious patterns (e.g. dangerous commands, base64 payloads)
 //
-// Returns an empty slice if no issues detected, otherwise a list of them.
+// Returns an empty slice if no issues are detected, otherwise a list of findings.
 func staticAnalysis(files []ZipFile) []string {
 	ch := make(chan string)
 	var wg sync.WaitGroup
@@ -44,6 +51,8 @@ func staticAnalysis(files []ZipFile) []string {
 	return matched
 }
 
+// normalizeContent strips comments, expands variables, removes string
+// concatenation and escape chars to produce a form ready for pattern matching.
 func normalizeContent(s []byte) string {
 	content := strings.ToLower(string(s))
 	content = stripComments(content)
@@ -82,15 +91,13 @@ func removeEscapeChars(content string) string {
 }
 
 func normalizeWhitespaces(content string) string {
-	re := regexp.MustCompile(`\s+`)
-	return re.ReplaceAllString(content, " ")
+	return whitespacesPattern.ReplaceAllString(content, " ")
 }
 
 func expandVariables(content string) string {
-	re := regexp.MustCompile(`(\w+)=["']?([^"'\s]+)["']?`)
 	vars := make(map[string]string)
 
-	for _, match := range re.FindAllStringSubmatch(content, -1) {
+	for _, match := range expandVariablesPattern.FindAllStringSubmatch(content, -1) {
 		vars[match[1]] = match[2]
 	}
 
@@ -102,8 +109,7 @@ func expandVariables(content string) string {
 }
 
 func normalizeSeparators(content string) string {
-	re := regexp.MustCompile(`(;|&&|\|\|)`)
-	return re.ReplaceAllString(content, "\n")
+	return normalizeSeparatorsPattern.ReplaceAllString(content, "\n")
 }
 
 func normalizePaths(content string) string {
@@ -125,8 +131,7 @@ func decodeBase64Recursive(content string, maxDepth uint) string {
 // TODO: limit decoded size
 // TODO: limit number of decodes
 func decodeBase64(content string) string {
-	re := regexp.MustCompile(`(?i)[a-z0-9+/=]{20,}`)
-	matches := re.FindAllString(content, -1)
+	matches := base64Pattern.FindAllString(content, -1)
 
 	seen := make(map[string]struct{})
 	for _, m := range matches {
