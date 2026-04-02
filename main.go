@@ -1,92 +1,69 @@
 package main
 
 import (
-	"archive/zip"
-	"bytes"
-	"fmt"
-	"io"
+	"context"
 	"log"
-	"path/filepath"
-	"slices"
-	"strings"
+	"net"
+	"os"
+	"os/signal"
+	"scanner/internal/config"
+	"scanner/internal/scan"
+	"scanner/internal/zip"
+	"syscall"
+
+	pb "scanner/proto"
+
+	"google.golang.org/grpc"
 )
 
-type ZipFile struct {
-	Name    string
-	Content []byte
+type server struct {
+	pb.UnimplementedScannerServer
 }
 
-func (f ZipFile) isScript() bool {
-	if slices.Contains(cfg.ShellExtensions, filepath.Ext(f.Name)) {
-		return true
+func (s *server) ScanFile(ctx context.Context, req *pb.ScanRequest) (*pb.ScanResult, error) {
+	files, err := zip.SafeUnzip(req.FilePath)
+	if err != nil {
+		return &pb.ScanResult{IsMalicious: true, Reason: []string{err.Error()}}, nil
 	}
-	// fallback: check for shebang
-	return bytes.HasPrefix(f.Content, []byte("#!/"))
+
+	if virusName, ret := scan.Clam.Scan(req.FilePath); ret != nil {
+		return &pb.ScanResult{
+			IsMalicious: true,
+			Reason:      []string{"anti-virus", virusName},
+		}, nil
+	}
+
+	if matched := scan.StaticAnalysis(files); len(matched) > 0 {
+		return &pb.ScanResult{IsMalicious: true, Reason: matched}, nil
+	}
+
+	return &pb.ScanResult{IsMalicious: false, Reason: []string{}}, nil
 }
 
 // TODO: score system to reduce false-positives
 // TODO: gzip and hex deobfuscation
 func main() {
-	cfg.Init("config.toml")
-	clam.Init()
-	defer clam.Free()
+	config.Cfg.Init("config.toml")
+	scan.Clam.Init()
+	defer scan.Clam.Free()
 
-	const file = "./test_data/all.zip"
-	files, err := safeUnzip(file)
+	// lis, err := net.Listen("unix", "/tmp/scanner.sock")
+	lis, err := net.Listen("tcp", ":40400")
 	if err != nil {
-		log.Fatalf("Failed to safely unzip file: %v", err)
+		log.Fatalf("Failed to listen on unix socket: %v", err)
 	}
 
-	if virusName, ret := clam.Scan(file); ret != nil {
-		log.Printf("ClamAV detected: %s", virusName)
-	}
+	s := grpc.NewServer()
+	pb.RegisterScannerServer(s, &server{})
 
-	if matched := staticAnalysis(files); len(matched) > 0 {
-		log.Printf("Static analysis detected: %v", matched)
-	}
-}
+	// graceful shutdown
+	go func() {
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
+		<-sig
+		s.GracefulStop()
+	}()
 
-func safeUnzip(filePath string) ([]ZipFile, error) {
-	const maxFiles = 1000
-
-	r, err := zip.OpenReader(filePath)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-
-	if len(r.File) > maxFiles {
-		return nil, fmt.Errorf("archive contains too many files")
-	}
-
-	var files []ZipFile
-	var totalSize uint64
-
-	for _, f := range r.File {
-		if strings.Contains(f.Name, "..") {
-			return nil, fmt.Errorf("path traversal detected: %s", f.Name)
-		}
-		totalSize += f.UncompressedSize64
-		if totalSize > cfg.MaxUncompressedSize.Bytes() {
-			return nil, fmt.Errorf("uncompressed archive is too large")
-		}
-
-		fr, err := f.Open()
-		if err != nil {
-			return nil, fmt.Errorf("failed to open zip file: %v", err)
-		}
-		defer fr.Close()
-
-		content, err := io.ReadAll(fr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read zip file: %v", err)
-		}
-
-		files = append(files, ZipFile{
-			Name:    f.Name,
-			Content: content,
-		})
-	}
-
-	return files, nil
+	log.Println("gRPC server available at :40400")
+	s.Serve(lis)
 }

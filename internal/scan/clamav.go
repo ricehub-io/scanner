@@ -1,7 +1,8 @@
-package main
+package scan
 
 import (
 	"log"
+	"scanner/internal/config"
 
 	clamav "github.com/ca110us/go-clamav"
 	clamd "github.com/ca110us/go-clamav"
@@ -11,7 +12,7 @@ type ClamAV struct {
 	c *clamd.Clamav
 }
 
-var clam ClamAV
+var Clam ClamAV
 
 func (in *ClamAV) Init() {
 	in.c = new(clamd.Clamav)
@@ -37,7 +38,7 @@ func (in *ClamAV) Init() {
 		log.Fatalf("Failed to compile clamav engine: %v", err)
 	}
 
-	in.c.EngineSetNum(clamav.CL_ENGINE_MAX_SCANSIZE, cfg.MaxUncompressedSize.Bytes())
+	in.c.EngineSetNum(clamav.CL_ENGINE_MAX_SCANSIZE, config.Cfg.MaxUncompressedSize.Bytes())
 	in.c.EngineSetNum(clamav.CL_ENGINE_MAX_SCANTIME, 9000)
 }
 

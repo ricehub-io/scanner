@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"log"
@@ -26,7 +26,7 @@ type Config struct {
 	SuspiciousPatterns  []string `toml:"suspicious_patterns"`
 }
 
-var cfg Config
+var Cfg Config
 
 // Init reads config file from path, parses it, and
 // initializes global `cfg` variable. Panics if anything fails.

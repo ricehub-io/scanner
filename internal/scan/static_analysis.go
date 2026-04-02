@@ -1,8 +1,10 @@
-package main
+package scan
 
 import (
 	"encoding/base64"
 	"regexp"
+	"scanner/internal/config"
+	"scanner/internal/zip"
 	"strings"
 	"sync"
 )
@@ -18,18 +20,18 @@ var (
 // suspicious patterns (e.g. dangerous commands, base64 payloads)
 //
 // Returns an empty slice if no issues are detected, otherwise a list of findings.
-func staticAnalysis(files []ZipFile) []string {
+func StaticAnalysis(files []zip.ZipFile) []string {
 	ch := make(chan string)
 	var wg sync.WaitGroup
 
 	for _, f := range files {
-		if !f.isScript() {
+		if !f.IsScript() {
 			continue
 		}
 
 		wg.Go(func() {
 			content := normalizeContent(f.Content)
-			for _, pattern := range cfg.SuspiciousPatterns {
+			for _, pattern := range config.Cfg.SuspiciousPatterns {
 				matched, _ := regexp.MatchString(pattern, content)
 				if matched {
 					ch <- pattern
