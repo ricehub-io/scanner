@@ -79,7 +79,13 @@ var (
 	}
 )
 
-// analyze expects normalized content.
+// analyze scans normalized content for suspicious patterns,
+// for any pattern found it increases score based on weight.
+//
+// Returns total score from all matched patterns
+// (higher score = higher chance that file is malicious),
+// and forceBlock = true, if score should be ignored and
+// file marked as malicious immediately.
 func analyze(content string) (score uint, forceBlock bool) {
 	match := func(patterns []string) bool {
 		for _, pattern := range patterns {

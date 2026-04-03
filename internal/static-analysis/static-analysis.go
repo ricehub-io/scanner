@@ -9,7 +9,9 @@ const maxScore = 8
 
 // StaticAnalysis scans script files within the given zip files for
 // suspicious patterns (e.g. dangerous commands, base64 payloads).
-func StaticAnalysis(files []zip.ZipFile) []string {
+//
+// Returns true if malicious patterns have been detected, otherwise false.
+func StaticAnalysis(files []zip.ZipFile) bool {
 	ch := make(chan bool)
 	var wg sync.WaitGroup
 
@@ -32,9 +34,9 @@ func StaticAnalysis(files []zip.ZipFile) []string {
 
 	for ok := range ch {
 		if !ok {
-			return []string{"static analysis"}
+			return true
 		}
 	}
 
-	return []string{}
+	return false
 }

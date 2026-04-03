@@ -25,8 +25,11 @@ func (s *Server) ScanFile(ctx context.Context, req *pb.ScanRequest) (*pb.ScanRes
 		}, nil
 	}
 
-	if matched := staticanalysis.StaticAnalysis(files); len(matched) > 0 {
-		return &pb.ScanResult{IsMalicious: true, Reason: matched}, nil
+	if detected := staticanalysis.StaticAnalysis(files); detected {
+		return &pb.ScanResult{
+			IsMalicious: true,
+			Reason:      []string{"static analysis"},
+		}, nil
 	}
 
 	return &pb.ScanResult{IsMalicious: false, Reason: []string{}}, nil
