@@ -14,22 +14,22 @@ var Cfg rootConfig
 type rootConfig struct {
 	MaxUncompressedSize ByteSize `toml:"max_uncompressed_size"`
 	ShellExtensions     []string `toml:"shell_extensions"`
-	Heuristic           heuristicConfig
+	Heuristic           map[HeuristicCategory][]*regexp.Regexp
 }
 
-type heuristicConfig struct {
-	HardBlock    []*regexp.Regexp `toml:"hard_block"`
-	Soft         []*regexp.Regexp
-	Network      []*regexp.Regexp
-	Execution    []*regexp.Regexp
-	Obfuscation  []*regexp.Regexp
-	Sensitive    []*regexp.Regexp
-	FileSystem   []*regexp.Regexp `toml:"file_system"`
-	Privilege    []*regexp.Regexp
-	Persistence  []*regexp.Regexp
-	SSH          []*regexp.Regexp
-	Exfiltration []*regexp.Regexp
-}
+// type heuristicConfig struct {
+// 	HardBlock    []*regexp.Regexp `toml:"hard_block"`
+// 	Soft         []*regexp.Regexp
+// 	Network      []*regexp.Regexp
+// 	Execution    []*regexp.Regexp
+// 	Obfuscation  []*regexp.Regexp
+// 	Sensitive    []*regexp.Regexp
+// 	FileSystem   []*regexp.Regexp `toml:"file_system"`
+// 	Privilege    []*regexp.Regexp
+// 	Persistence  []*regexp.Regexp
+// 	SSH          []*regexp.Regexp
+// 	Exfiltration []*regexp.Regexp
+// }
 
 // Init reads config file from path, parses it, and
 // initializes global `cfg` variable. Panics if anything fails.
@@ -43,6 +43,8 @@ func (c *rootConfig) Init(filePath string) {
 	if err != nil {
 		log.Fatalf("Failed to parse config: %v", err)
 	}
+
+	// TODO: check if any heuristic category is missing
 }
 
 // Wrapper used for capturing human-readable data sizes from config.
@@ -57,3 +59,19 @@ func (b ByteSize) Bytes() uint64 {
 	}
 	return bytes
 }
+
+type HeuristicCategory string
+
+const (
+	HardBlock    HeuristicCategory = "hard_block"
+	Soft         HeuristicCategory = "soft"
+	Network      HeuristicCategory = "network"
+	Execution    HeuristicCategory = "execution"
+	Obfuscation  HeuristicCategory = "obfuscation"
+	Sensitive    HeuristicCategory = "sensitive"
+	FileSystem   HeuristicCategory = "file_system"
+	Privilege    HeuristicCategory = "privilege"
+	Persistence  HeuristicCategory = "persistence"
+	SSH          HeuristicCategory = "ssh"
+	Exfiltration HeuristicCategory = "exfiltration"
+)

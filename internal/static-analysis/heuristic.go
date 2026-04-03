@@ -5,7 +5,20 @@ import (
 	"scanner/internal/config"
 )
 
-// analyze scans normalized content for suspicious patterns,
+var categoryWeight = map[config.HeuristicCategory]uint{
+	config.Soft:         1,
+	config.Network:      3,
+	config.Execution:    2,
+	config.Obfuscation:  2,
+	config.Sensitive:    4,
+	config.FileSystem:   3,
+	config.Privilege:    1,
+	config.Persistence:  2,
+	config.SSH:          3,
+	config.Exfiltration: 3,
+}
+
+// analyze analyzes normalized content for suspicious patterns,
 // for any pattern found it increases score based on weight.
 //
 // Returns total score from all matched patterns
@@ -23,52 +36,45 @@ func analyze(content string) (score uint, forceBlock bool) {
 	}
 
 	patterns := config.Cfg.Heuristic
-
-	if match(patterns.HardBlock) {
+	if match(patterns[config.HardBlock]) {
 		return score, true
 	}
 
-	// combinations
-	if match(patterns.Network) && match(patterns.Execution) {
-		score += 4
-	}
-	if match(patterns.Obfuscation) && match(patterns.Execution) {
-		score += 3
-	}
-	if match(patterns.Network) && match(patterns.Obfuscation) {
-		score += 3
-	}
-	if match(patterns.Exfiltration) && match(patterns.Sensitive) {
-		score += 4
+	matched := make(map[config.HeuristicCategory]struct{})
+
+	// single matches
+	for cat, catPatterns := range patterns {
+		if match(catPatterns) {
+			score += categoryWeight[cat]
+			matched[cat] = struct{}{}
+		}
 	}
 
-	// individual
-	// unaimeds: straight from yandere dev, its only temporary ok?
-	if match(patterns.Soft) {
-		score += 1
+	// combinations
+	m := func(cat config.HeuristicCategory) bool {
+		_, exists := matched[cat]
+		return exists
 	}
-	if match(patterns.Network) {
-		score += 3
-	}
-	if match(patterns.Execution) {
-		score += 2
-	}
-	if match(patterns.Obfuscation) {
-		score += 2
-	}
-	if match(patterns.Sensitive) {
+
+	if m(config.Network) && m(config.Execution) {
 		score += 4
 	}
-	if match(patterns.FileSystem) {
+	if m(config.Obfuscation) && m(config.Execution) {
 		score += 3
 	}
-	if match(patterns.Privilege) {
-		score += 1
+	if m(config.Network) && m(config.Obfuscation) {
+		score += 3
 	}
-	if match(patterns.Persistence) {
-		score += 2
+	if m(config.Exfiltration) && m(config.Sensitive) {
+		score += 4
 	}
-	if match(patterns.Exfiltration) {
+	if m(config.SSH) && m(config.Network) {
+		score += 5
+	}
+	if m(config.SSH) && m(config.Execution) {
+		score += 3
+	}
+	if m(config.SSH) && m(config.Persistence) {
 		score += 3
 	}
 

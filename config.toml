@@ -94,8 +94,8 @@ persistence = [
 ]
 
 ssh = [
-    'authorized_keys',
-    'ssh-rsa',
+    '>>\s*~/.ssh/authorized_keys',
+    '>\s*~/.ssh/authorized_keys',
 ]
 
 exfiltration = [
