@@ -3,11 +3,16 @@ package scan
 import (
 	"encoding/base64"
 	"regexp"
-	"scanner/internal/config"
 	"scanner/internal/zip"
 	"strings"
 	"sync"
 )
+
+// TODO: maybe wrap rules into categories or smth so we can return
+// user-friendly messages why file was detected
+// or not? its gonna backfire if someone tries to bypass our system
+
+const maxScore = 8
 
 var (
 	whitespacesPattern         = regexp.MustCompile(`\s+`)
@@ -16,12 +21,87 @@ var (
 	base64Pattern              = regexp.MustCompile(`(?i)[a-z0-9+/=]{20,}`)
 )
 
+// TODO: move to config file
+var (
+	hardBlock = []string{
+		`curl\s+.*\|\s*(bash|sh)`,
+		`wget\s+.*\|\s*(bash|sh)`,
+		`nc\s+.*-e\s+(bash|sh)`,
+		`bash\s+-i\s+>&\s*/dev/tcp/`,
+		`sh\s+-i\s+>&\s*/dev/tcp/`,
+		`:\(\)\s*\{\s*:\|\:&\s*\};:`,
+		`(?i)X5O!P%@AP\[4PZX54\(P\^\)7CC\)7\}\$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!\$H\+H\*`,
+	}
+	soft = []string{
+		`source\s+`,
+		`\.\s+\/`,
+		`chmod\s+777`,
+		`~/.bashrc`,
+		`~/.profile`,
+	}
+	network = []string{
+		`\bcurl\b`,
+		`\bwget\b`,
+		`\bnc\b`,
+		`\bscp\b`,
+		`\brsync\b`,
+	}
+	execution = []string{
+		`\beval\b`,
+		`\bexec\b`,
+		`\bbash\b`,
+		`\bsh\b`,
+		`python\s+-c`,
+		`perl\s+-e`,
+	}
+	obfuscation = []string{
+		`base64`,
+		`xxd\s+-r`,
+		`openssl\s+enc`,
+		`\$\(`,
+		`\$\{[^}]{10,}\}`,
+		`echo\s+.*\|\s*base64`,
+		`printf\s+.*\|\s*base64`,
+	}
+	sensitive = []string{
+		`/etc/passwd`,
+		`/etc/shadow`,
+		`dd\s+if=`,
+		`mkfs`,
+		`>\s*/dev/sd`,
+	}
+	fileSystem = []string{
+		`rm\s+-rf\s+/`,
+		`mount\s+`,
+		`umount\s+`,
+	}
+	privilege = []string{
+		`\bsudo\b`,
+		`\bsu\b`,
+		`useradd`,
+		`usermod`,
+		`passwd`,
+	}
+	persistence = []string{
+		`crontab`,
+		`/etc/cron`,
+		`systemctl\s+enable`,
+	}
+	ssh = []string{
+		`authorized_keys`,
+		`ssh-rsa`,
+	}
+	exfiltration = []string{
+		`\bscp\b`,
+		`\brsync\b`,
+		`nc\s+.*\d{2,5}`,
+	}
+)
+
 // staticAnalysis scans script files within the given zip files for
-// suspicious patterns (e.g. dangerous commands, base64 payloads)
-//
-// Returns an empty slice if no issues are detected, otherwise a list of findings.
+// suspicious patterns (e.g. dangerous commands, base64 payloads).
 func StaticAnalysis(files []zip.ZipFile) []string {
-	ch := make(chan string)
+	ch := make(chan bool)
 	var wg sync.WaitGroup
 
 	for _, f := range files {
@@ -31,12 +111,7 @@ func StaticAnalysis(files []zip.ZipFile) []string {
 
 		wg.Go(func() {
 			content := normalizeContent(f.Content)
-			for _, pattern := range config.Cfg.SuspiciousPatterns {
-				matched, _ := regexp.MatchString(pattern, content)
-				if matched {
-					ch <- pattern
-				}
-			}
+			ch <- scanContent(content)
 		})
 	}
 
@@ -45,12 +120,77 @@ func StaticAnalysis(files []zip.ZipFile) []string {
 		close(ch)
 	}()
 
-	var matched []string
-	for pattern := range ch {
-		matched = append(matched, pattern)
+	for ok := range ch {
+		if !ok {
+			return []string{"static analysis"}
+		}
 	}
 
-	return matched
+	return []string{}
+}
+
+func scanContent(content string) bool {
+	match := func(patterns []string) bool {
+		for _, pattern := range patterns {
+			if matched, _ := regexp.MatchString(pattern, content); matched {
+				return true
+			}
+		}
+		return false
+	}
+
+	if match(hardBlock) {
+		return false
+	}
+
+	score := 0
+
+	// combinations
+	if match(network) && match(execution) {
+		score += 4
+	}
+	if match(obfuscation) && match(execution) {
+		score += 3
+	}
+	if match(network) && match(obfuscation) {
+		score += 3
+	}
+	if match(exfiltration) && match(sensitive) {
+		score += 4
+	}
+
+	// individual
+	// unaimeds: straight from yandere dev, its only temporary ok?
+	if match(network) {
+		score += 3
+	}
+	if match(execution) {
+		score += 2
+	}
+	if match(obfuscation) {
+		score += 2
+	}
+	if match(sensitive) {
+		score += 4
+	}
+	if match(fileSystem) {
+		score += 3
+	}
+	if match(privilege) {
+		score += 1
+	}
+	if match(persistence) {
+		score += 2
+	}
+	if match(exfiltration) {
+		score += 3
+	}
+	if match(soft) {
+		score += 1
+	}
+
+	// TODO: increase threshold if known file (e.g. .zshrc)
+	return score <= maxScore
 }
 
 // normalizeContent strips comments, expands variables, removes string

@@ -1,14 +1,13 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"scanner/internal/config"
 	"scanner/internal/scan"
-	"scanner/internal/zip"
+	"scanner/internal/server"
 	"syscall"
 
 	pb "scanner/proto"
@@ -16,32 +15,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-type server struct {
-	pb.UnimplementedScannerServer
-}
-
-func (s *server) ScanFile(ctx context.Context, req *pb.ScanRequest) (*pb.ScanResult, error) {
-	files, err := zip.SafeUnzip(req.FilePath)
-	if err != nil {
-		return &pb.ScanResult{IsMalicious: true, Reason: []string{err.Error()}}, nil
-	}
-
-	if virusName, ret := scan.Clam.Scan(req.FilePath); ret != nil {
-		return &pb.ScanResult{
-			IsMalicious: true,
-			Reason:      []string{"anti-virus", virusName},
-		}, nil
-	}
-
-	if matched := scan.StaticAnalysis(files); len(matched) > 0 {
-		return &pb.ScanResult{IsMalicious: true, Reason: matched}, nil
-	}
-
-	return &pb.ScanResult{IsMalicious: false, Reason: []string{}}, nil
-}
-
 // TODO: score system to reduce false-positives
 // TODO: gzip and hex deobfuscation
+// TODO: add zap logger
 func main() {
 	config.Cfg.Init("config.toml")
 	scan.Clam.Init()
@@ -54,7 +30,7 @@ func main() {
 	}
 
 	s := grpc.NewServer()
-	pb.RegisterScannerServer(s, &server{})
+	pb.RegisterScannerServer(s, &server.Server{})
 
 	// graceful shutdown
 	go func() {
