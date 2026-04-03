@@ -12,7 +12,10 @@ import (
 // user-friendly messages why file was detected
 // or not? its gonna backfire if someone tries to bypass our system
 
-const maxScore = 8
+const (
+	maxScore         = 8
+	maxBase64Matches = 50
+)
 
 var (
 	whitespacesPattern         = regexp.MustCompile(`\s+`)
@@ -270,13 +273,16 @@ func decodeBase64Recursive(content string, maxDepth uint) string {
 	return content
 }
 
-// TODO: limit decoded size
-// TODO: limit number of decodes
 func decodeBase64(content string) string {
 	matches := base64Pattern.FindAllString(content, -1)
 
 	seen := make(map[string]struct{})
-	for _, m := range matches {
+	for i, m := range matches {
+		// TODO: increase malicious score if too many matches
+		if i+1 > maxBase64Matches {
+			break
+		}
+
 		if _, exists := seen[m]; exists {
 			continue
 		}
@@ -296,6 +302,10 @@ func decodeBase64(content string) string {
 func tryDecodeBase64(content string) (string, bool) {
 	decoded, err := base64.StdEncoding.DecodeString(content)
 	if err != nil {
+		return "", false
+	}
+
+	if len(decoded) > 10_000 {
 		return "", false
 	}
 
