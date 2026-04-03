@@ -11,3 +11,95 @@ shell_extensions = [
     ".py",
     ".pl",
 ]
+
+# Regex patterns used in heuristic engine when analyzing file content.
+[heuristic]
+
+# These patterns will mark file as malicious, no matter the score.
+hard_block = [
+    'curl\s+.*\|\s*(bash|sh)',
+    'wget\s+.*\|\s*(bash|sh)',
+    'nc\s+.*-e\s+(bash|sh)',
+    'bash\s+-i\s+>&\s*/dev/tcp/',
+    'sh\s+-i\s+>&\s*/dev/tcp/',
+    ':\(\)\s*\{\s*:\|\:&\s*\};:',
+    '(?i)X5O!P%@AP\[4PZX54\(P\^\)7CC\)7\}\$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!\$H\+H\*',
+]
+
+# All patterns below will be used to calculate the final score.
+# Each category has its own weight (hardcoded lol).
+
+# Soft patterns are very commonly matched therefore have lowest weight.
+soft = [
+    'source\s+',
+	'\.\s+\/',
+	'chmod\s+777',
+	'~/.bashrc',
+	'~/.profile',
+]
+
+network = [
+    '\bcurl\b',
+    '\bwget\b',
+    '\bnc\b',
+    '\bscp\b',
+    '\brsync\b',
+]
+
+execution = [
+    '\beval\b',
+    '\bexec\b',
+    '\bbash\b',
+    '\bsh\b',
+    'python\s+-c',
+    'perl\s+-e',
+]
+
+obfuscation = [
+    'base64',
+    'xxd\s+-r',
+    'openssl\s+enc',
+    '\$\(',
+    '\$\{[^}]{10,}\}',
+    'echo\s+.*\|\s*base64',
+    'printf\s+.*\|\s*base64',
+]
+
+sensitive = [
+    '/etc/passwd',
+    '/etc/shadow',
+    'dd\s+if=',
+    'mkfs',
+    '>\s*/dev/sd',
+]
+
+file_system = [
+    'rm\s+-rf\s+/',
+    'mount\s+',
+    'umount\s+',
+]
+
+privilege = [
+    '\bsudo\b',
+    '\bsu\b',
+    'useradd',
+    'usermod',
+    'passwd',
+]
+
+persistence = [
+    'crontab',
+    '/etc/cron',
+    'systemctl\s+enable',
+]
+
+ssh = [
+    'authorized_keys',
+    'ssh-rsa',
+]
+
+exfiltration = [
+    '\bscp\b',
+    '\brsync\b',
+    'nc\s+.*\d{2,5}',
+]
