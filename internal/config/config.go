@@ -23,7 +23,6 @@ func (b ByteSize) Bytes() uint64 {
 type Config struct {
 	MaxUncompressedSize ByteSize `toml:"max_uncompressed_size"`
 	ShellExtensions     []string `toml:"shell_extensions"`
-	SuspiciousPatterns  []string `toml:"suspicious_patterns"`
 }
 
 var Cfg Config

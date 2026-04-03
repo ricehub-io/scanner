@@ -5,8 +5,8 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"scanner/internal/clamav"
 	"scanner/internal/config"
-	"scanner/internal/scan"
 	"scanner/internal/server"
 	"syscall"
 
@@ -15,13 +15,12 @@ import (
 	"google.golang.org/grpc"
 )
 
-// TODO: score system to reduce false-positives
 // TODO: gzip and hex deobfuscation
 // TODO: add zap logger
 func main() {
 	config.Cfg.Init("config.toml")
-	scan.Clam.Init()
-	defer scan.Clam.Free()
+	clamav.Clam.Init()
+	defer clamav.Clam.Free()
 
 	// lis, err := net.Listen("unix", "/tmp/scanner.sock")
 	lis, err := net.Listen("tcp", ":40400")

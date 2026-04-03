@@ -2,7 +2,8 @@ package server
 
 import (
 	"context"
-	"scanner/internal/scan"
+	"scanner/internal/clamav"
+	staticanalysis "scanner/internal/static-analysis"
 	"scanner/internal/zip"
 	pb "scanner/proto"
 )
@@ -17,14 +18,14 @@ func (s *Server) ScanFile(ctx context.Context, req *pb.ScanRequest) (*pb.ScanRes
 		return &pb.ScanResult{IsMalicious: true, Reason: []string{err.Error()}}, nil
 	}
 
-	if virusName, ret := scan.Clam.Scan(req.FilePath); ret != nil {
+	if virusName, ret := clamav.Clam.Scan(req.FilePath); ret != nil {
 		return &pb.ScanResult{
 			IsMalicious: true,
 			Reason:      []string{"anti-virus", virusName},
 		}, nil
 	}
 
-	if matched := scan.StaticAnalysis(files); len(matched) > 0 {
+	if matched := staticanalysis.StaticAnalysis(files); len(matched) > 0 {
 		return &pb.ScanResult{IsMalicious: true, Reason: matched}, nil
 	}
 
