@@ -18,7 +18,7 @@ type config struct {
 }
 
 // Init reads config file from path, parses it, and
-// initializes global `cfg` variable. Panics if anything fails.
+// initializes global `Cfg` variable. Panics if anything fails.
 func (c *config) Init(filePath string) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
