@@ -29,6 +29,9 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Install system dependencies
+        run: sudo apt-get install -y libclamav-dev
+
       - name: Compile proto
         run: |
           sudo apt-get install -y protobuf-compiler
@@ -58,6 +61,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y libclamav-dev
 
       - name: Compile proto
         run: |
