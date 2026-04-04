@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"scanner/internal/clamav"
-	staticanalysis "scanner/internal/static-analysis"
+	"scanner/internal/staticanalysis"
 	"scanner/internal/zip"
 	pb "scanner/proto"
 )

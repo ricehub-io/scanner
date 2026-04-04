@@ -9,31 +9,17 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-var Cfg rootConfig
+var Cfg config
 
-type rootConfig struct {
+type config struct {
 	MaxUncompressedSize ByteSize `toml:"max_uncompressed_size"`
 	ShellExtensions     []string `toml:"shell_extensions"`
 	Heuristic           map[HeuristicCategory][]*regexp.Regexp
 }
 
-// type heuristicConfig struct {
-// 	HardBlock    []*regexp.Regexp `toml:"hard_block"`
-// 	Soft         []*regexp.Regexp
-// 	Network      []*regexp.Regexp
-// 	Execution    []*regexp.Regexp
-// 	Obfuscation  []*regexp.Regexp
-// 	Sensitive    []*regexp.Regexp
-// 	FileSystem   []*regexp.Regexp `toml:"file_system"`
-// 	Privilege    []*regexp.Regexp
-// 	Persistence  []*regexp.Regexp
-// 	SSH          []*regexp.Regexp
-// 	Exfiltration []*regexp.Regexp
-// }
-
 // Init reads config file from path, parses it, and
 // initializes global `cfg` variable. Panics if anything fails.
-func (c *rootConfig) Init(filePath string) {
+func (c *config) Init(filePath string) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		log.Fatalf("Failed to read config file: %v", err)

@@ -12,3 +12,5 @@ build:
 run:
 	go run $(CMD)
 
+test:
+	go test ./... -v -race -count=1
