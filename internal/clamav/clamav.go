@@ -1,10 +1,10 @@
 package clamav
 
 import (
-	"log"
 	"scanner/internal/config"
 
 	clamd "github.com/ca110us/go-clamav"
+	"go.uber.org/zap"
 )
 
 type scanner interface {
@@ -19,6 +19,7 @@ type ClamAV struct {
 var Clam ClamAV
 
 func (in *ClamAV) Init() {
+	l := zap.L()
 	c := new(clamd.Clamav)
 
 	err := c.Init(clamd.SCAN_OPTIONS{
@@ -29,17 +30,17 @@ func (in *ClamAV) Init() {
 		Dev:       0,
 	})
 	if err != nil {
-		log.Fatalf("Failed to init clamav: %v", err)
+		l.Fatal("Could not initialize ClamAV", zap.Error(err))
 	}
 
 	_, err = c.LoadDB("/var/lib/clamav", uint(clamd.CL_DB_DIRECTORY))
 	if err != nil {
-		log.Fatalf("Failed to load clamav database: %v", err)
+		l.Fatal("Could not load ClamAV database", zap.Error(err))
 	}
 
 	err = c.CompileEngine()
 	if err != nil {
-		log.Fatalf("Failed to compile clamav engine: %v", err)
+		l.Fatal("Could not compile ClamAV engine", zap.Error(err))
 	}
 
 	c.EngineSetNum(
@@ -49,6 +50,8 @@ func (in *ClamAV) Init() {
 	c.EngineSetNum(clamd.CL_ENGINE_MAX_SCANTIME, 9000)
 
 	in.c = c
+
+	l.Info("ClamAV initialized")
 }
 
 func (in *ClamAV) Free() {

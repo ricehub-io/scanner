@@ -1,12 +1,12 @@
 package config
 
 import (
-	"log"
 	"os"
 	"regexp"
 
 	"github.com/dustin/go-humanize"
 	"github.com/pelletier/go-toml/v2"
+	"go.uber.org/zap"
 )
 
 var Cfg config
@@ -18,17 +18,22 @@ type config struct {
 }
 
 // Init reads config file from path, parses it, and
-// initializes global `Cfg` variable. Panics if anything fails.
+// initializes global `Cfg` variable. Exits if anything fails.
 func (c *config) Init(filePath string) {
+	l := zap.L()
+	l.Info("Initializing config...", zap.String("config_path", filePath))
+
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		log.Fatalf("Failed to read config file: %v", err)
+		l.Fatal("Could not read config file", zap.Error(err))
 	}
 
 	err = toml.Unmarshal(content, c)
 	if err != nil {
-		log.Fatalf("Failed to parse config: %v", err)
+		l.Fatal("Could not parse config file", zap.Error(err))
 	}
+
+	l.Info("Config loaded")
 
 	// TODO: check if any heuristic category is missing
 }
@@ -41,7 +46,10 @@ type ByteSize string
 func (b ByteSize) Bytes() uint64 {
 	bytes, err := humanize.ParseBytes(string(b))
 	if err != nil {
-		log.Fatalf("Failed to convert bytes: %v", err)
+		zap.L().Fatal("Could not convert human-readable bytes to uint64",
+			zap.Error(err),
+			zap.String("value", string(b)),
+		)
 	}
 	return bytes
 }

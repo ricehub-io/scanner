@@ -6,6 +6,8 @@ import (
 	"scanner/internal/staticanalysis"
 	"scanner/internal/zip"
 	pb "scanner/proto"
+
+	"go.uber.org/zap"
 )
 
 type Server struct {
@@ -13,6 +15,9 @@ type Server struct {
 }
 
 func (s *Server) ScanFile(ctx context.Context, req *pb.ScanRequest) (*pb.ScanResult, error) {
+	l := zap.L()
+	l.Info("Received request to scan file", zap.String("file_path", req.FilePath))
+
 	files, err := zip.SafeUnzip(req.FilePath)
 	if err != nil {
 		return &pb.ScanResult{IsMalicious: true, Reason: []string{err.Error()}}, nil

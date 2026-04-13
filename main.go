@@ -1,23 +1,26 @@
 package main
 
 import (
-	"log"
 	"net"
 	"os"
 	"os/signal"
 	"scanner/internal/clamav"
 	"scanner/internal/config"
+	"scanner/internal/logger"
 	"scanner/internal/server"
 	"syscall"
 
 	pb "scanner/proto"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 // TODO: gzip and hex deobfuscation
-// TODO: add zap logger
 func main() {
+	l := logger.Init()
+	defer l.Sync()
+
 	config.Cfg.Init("config.toml")
 	clamav.Clam.Init()
 	defer clamav.Clam.Free()
@@ -25,7 +28,7 @@ func main() {
 	// lis, err := net.Listen("unix", "/tmp/scanner.sock")
 	lis, err := net.Listen("tcp", ":40400")
 	if err != nil {
-		log.Fatalf("Failed to listen on unix socket: %v", err)
+		l.Fatal("Could not create TCP listener", zap.Error(err))
 	}
 
 	s := grpc.NewServer()
@@ -39,6 +42,6 @@ func main() {
 		s.GracefulStop()
 	}()
 
-	log.Println("gRPC server available at :40400")
+	l.Info("gRPC server available at localhost:40400")
 	s.Serve(lis)
 }
