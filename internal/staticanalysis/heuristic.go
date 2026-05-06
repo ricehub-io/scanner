@@ -2,7 +2,8 @@ package staticanalysis
 
 import (
 	"regexp"
-	"scanner/internal/config"
+
+	"github.com/ricehub-io/scanner/internal/config"
 )
 
 var categoryWeight = map[config.HeuristicCategory]uint{

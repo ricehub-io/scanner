@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"scanner/internal/config"
 	"slices"
 	"strings"
+
+	"github.com/ricehub-io/scanner/internal/config"
 )
 
 type ZipFile struct {
@@ -31,7 +32,7 @@ func SafeUnzip(filePath string) ([]ZipFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
+	defer closeSilent(r)
 
 	if len(r.File) > maxFiles {
 		return nil, fmt.Errorf("archive contains too many files")
@@ -53,7 +54,7 @@ func SafeUnzip(filePath string) ([]ZipFile, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open zip file: %v", err)
 		}
-		defer fr.Close()
+		defer closeSilent(fr)
 
 		content, err := io.ReadAll(fr)
 		if err != nil {
@@ -67,4 +68,8 @@ func SafeUnzip(filePath string) ([]ZipFile, error) {
 	}
 
 	return files, nil
+}
+
+func closeSilent(c io.Closer) {
+	_ = c.Close()
 }

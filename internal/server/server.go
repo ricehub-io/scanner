@@ -2,40 +2,44 @@ package server
 
 import (
 	"context"
-	"scanner/internal/clamav"
-	"scanner/internal/staticanalysis"
-	"scanner/internal/zip"
-	pb "scanner/proto"
+
+	scannerv1 "github.com/ricehub-io/proto/gen/go/scanner/v1"
+	"github.com/ricehub-io/scanner/internal/clamav"
+	"github.com/ricehub-io/scanner/internal/staticanalysis"
+	"github.com/ricehub-io/scanner/internal/zip"
 
 	"go.uber.org/zap"
 )
 
-type Server struct {
-	pb.UnimplementedScannerServer
+type ScannerServer struct {
+	scannerv1.UnimplementedScannerServiceServer
 }
 
-func (s *Server) ScanFile(ctx context.Context, req *pb.ScanRequest) (*pb.ScanResult, error) {
+func (s *ScannerServer) ScanFile(
+	ctx context.Context,
+	req *scannerv1.ScanRequest,
+) (*scannerv1.ScanResponse, error) {
 	l := zap.L()
 	l.Info("Received request to scan file", zap.String("file_path", req.FilePath))
 
 	files, err := zip.SafeUnzip(req.FilePath)
 	if err != nil {
-		return &pb.ScanResult{IsMalicious: true, Reason: []string{err.Error()}}, nil
+		return &scannerv1.ScanResponse{IsMalicious: true, Reason: []string{err.Error()}}, nil
 	}
 
 	if virusName, ret := clamav.Clam.Scan(req.FilePath); ret != nil {
-		return &pb.ScanResult{
+		return &scannerv1.ScanResponse{
 			IsMalicious: true,
 			Reason:      []string{"anti-virus", virusName},
 		}, nil
 	}
 
 	if detected := staticanalysis.StaticAnalysis(files); detected {
-		return &pb.ScanResult{
+		return &scannerv1.ScanResponse{
 			IsMalicious: true,
 			Reason:      []string{"static analysis"},
 		}, nil
 	}
 
-	return &pb.ScanResult{IsMalicious: false, Reason: []string{}}, nil
+	return &scannerv1.ScanResponse{IsMalicious: false, Reason: []string{}}, nil
 }

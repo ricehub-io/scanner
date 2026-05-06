@@ -11,11 +11,11 @@ func writeTempTOML(t *testing.T, content string) string {
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	t.Cleanup(func() { os.Remove(f.Name()) })
+	t.Cleanup(func() { _ = os.Remove(f.Name()) })
 	if _, err := f.WriteString(content); err != nil {
 		t.Fatalf("failed to write temp file: %v", err)
 	}
-	f.Close()
+	_ = f.Close()
 	return f.Name()
 }
 

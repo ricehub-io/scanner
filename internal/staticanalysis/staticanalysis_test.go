@@ -1,8 +1,9 @@
 package staticanalysis
 
 import (
-	"scanner/internal/zip"
 	"testing"
+
+	"github.com/ricehub-io/scanner/internal/zip"
 )
 
 func TestStaticAnalysis_EmptyFiles(t *testing.T) {

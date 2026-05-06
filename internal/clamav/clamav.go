@@ -1,10 +1,11 @@
 package clamav
 
 import (
-	"scanner/internal/config"
+	"fmt"
+
+	"github.com/ricehub-io/scanner/internal/config"
 
 	clamd "github.com/ca110us/go-clamav"
-	"go.uber.org/zap"
 )
 
 type scanner interface {
@@ -18,40 +19,42 @@ type ClamAV struct {
 
 var Clam ClamAV
 
-func (in *ClamAV) Init() {
-	l := zap.L()
+func (in *ClamAV) Init() error {
 	c := new(clamd.Clamav)
 
-	err := c.Init(clamd.SCAN_OPTIONS{
+	if err := c.Init(clamd.SCAN_OPTIONS{
 		General:   0,
 		Parse:     clamd.CL_SCAN_PARSE_ARCHIVE | clamd.CL_SCAN_PARSE_ELF,
 		Heuristic: 0,
 		Mail:      0,
 		Dev:       0,
-	})
-	if err != nil {
-		l.Fatal("Could not initialize ClamAV", zap.Error(err))
+	}); err != nil {
+		return fmt.Errorf("clamd init: %w", err)
 	}
 
-	_, err = c.LoadDB("/var/lib/clamav", uint(clamd.CL_DB_DIRECTORY))
+	_, err := c.LoadDB("/var/lib/clamav", uint(clamd.CL_DB_DIRECTORY))
 	if err != nil {
-		l.Fatal("Could not load ClamAV database", zap.Error(err))
+		return fmt.Errorf("load db: %w", err)
 	}
 
-	err = c.CompileEngine()
-	if err != nil {
-		l.Fatal("Could not compile ClamAV engine", zap.Error(err))
+	if err := c.CompileEngine(); err != nil {
+		return fmt.Errorf("compile engine: %w", err)
 	}
 
-	c.EngineSetNum(
+	if err := c.EngineSetNum(
 		clamd.CL_ENGINE_MAX_SCANSIZE,
 		config.Cfg.MaxUncompressedSize.Bytes(),
-	)
-	c.EngineSetNum(clamd.CL_ENGINE_MAX_SCANTIME, 9000)
+	); err != nil {
+		return fmt.Errorf("engine set num - scan size: %w", err)
+	}
+
+	if err := c.EngineSetNum(clamd.CL_ENGINE_MAX_SCANTIME, 9000); err != nil {
+		return fmt.Errorf("engine set num - scan time: %w", err)
+	}
 
 	in.c = c
 
-	l.Info("ClamAV initialized")
+	return nil
 }
 
 func (in *ClamAV) Free() {

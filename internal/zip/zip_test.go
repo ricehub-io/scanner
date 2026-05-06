@@ -4,9 +4,10 @@ import (
 	"archive/zip"
 	"bytes"
 	"os"
-	"scanner/internal/config"
 	"strings"
 	"testing"
+
+	"github.com/ricehub-io/scanner/internal/config"
 )
 
 func TestMain(m *testing.M) {
@@ -24,7 +25,7 @@ func makeZip(t *testing.T, files map[string]string) string {
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	t.Cleanup(func() { os.Remove(tmp.Name()) })
+	t.Cleanup(func() { _ = os.Remove(tmp.Name()) })
 
 	w := zip.NewWriter(tmp)
 	for name, content := range files {
@@ -154,15 +155,17 @@ func TestSafeUnzip_TooManyFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Remove(tmp.Name()) })
+	t.Cleanup(func() { _ = os.Remove(tmp.Name()) })
 
 	w := zip.NewWriter(tmp)
 	for i := range 1001 {
 		f, _ := w.Create(strings.Repeat("a", 4) + string(rune('A'+i%26)) + string(rune('0'+i/26)) + ".txt")
-		f.Write([]byte("x"))
+		if _, err := f.Write([]byte("x")); err != nil {
+			t.Fatalf("write failed: %v", err)
+		}
 	}
-	w.Close()
-	tmp.Close()
+	_ = w.Close()
+	_ = tmp.Close()
 
 	_, err = SafeUnzip(tmp.Name())
 	if err == nil {

@@ -1,8 +1,9 @@
 package staticanalysis
 
 import (
-	"scanner/internal/zip"
 	"sync"
+
+	"github.com/ricehub-io/scanner/internal/zip"
 )
 
 const maxScore = 8

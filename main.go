@@ -1,47 +1,50 @@
 package main
 
 import (
+	"fmt"
+	"log"
 	"net"
-	"os"
-	"os/signal"
-	"scanner/internal/clamav"
-	"scanner/internal/config"
-	"scanner/internal/logger"
-	"scanner/internal/server"
-	"syscall"
 
-	pb "scanner/proto"
+	scannerv1 "github.com/ricehub-io/proto/gen/go/scanner/v1"
+	"github.com/ricehub-io/scanner/internal/clamav"
+	"github.com/ricehub-io/scanner/internal/config"
+	"github.com/ricehub-io/scanner/internal/logger"
+	"github.com/ricehub-io/scanner/internal/server"
 
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
+const port = ":40400"
+
 // TODO: gzip and hex deobfuscation
 func main() {
+	if err := run(); err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func run() error {
 	l := logger.Init()
-	defer l.Sync()
+	defer func() { _ = l.Sync() }()
 
 	config.Cfg.Init("config.toml")
-	clamav.Clam.Init()
+	if err := clamav.Clam.Init(); err != nil {
+		return fmt.Errorf("clamav: %w", err)
+	}
 	defer clamav.Clam.Free()
 
-	// lis, err := net.Listen("unix", "/tmp/scanner.sock")
-	lis, err := net.Listen("tcp", ":40400")
+	lis, err := net.Listen("tcp", port)
 	if err != nil {
-		l.Fatal("Could not create TCP listener", zap.Error(err))
+		return fmt.Errorf("net listen: %w", err)
 	}
 
-	s := grpc.NewServer()
-	pb.RegisterScannerServer(s, &server.Server{})
+	grpcServer := grpc.NewServer()
+	scannerv1.RegisterScannerServiceServer(grpcServer, &server.ScannerServer{})
 
-	// graceful shutdown
-	go func() {
-		sig := make(chan os.Signal, 1)
-		signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
-		<-sig
-		s.GracefulStop()
-	}()
+	l.Sugar().Infof("gRPC server available at %s", port)
+	if err := grpcServer.Serve(lis); err != nil {
+		return fmt.Errorf("grpc serve: %w", err)
+	}
 
-	l.Info("gRPC server available at localhost:40400")
-	s.Serve(lis)
+	return nil
 }

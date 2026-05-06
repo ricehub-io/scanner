@@ -2,8 +2,9 @@ package staticanalysis
 
 import (
 	"regexp"
-	"scanner/internal/config"
 	"testing"
+
+	"github.com/ricehub-io/scanner/internal/config"
 )
 
 func TestAnalyze_NoMatch(t *testing.T) {

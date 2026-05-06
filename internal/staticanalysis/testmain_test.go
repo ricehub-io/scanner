@@ -3,8 +3,9 @@ package staticanalysis
 import (
 	"os"
 	"regexp"
-	"scanner/internal/config"
 	"testing"
+
+	"github.com/ricehub-io/scanner/internal/config"
 )
 
 func TestMain(m *testing.M) {

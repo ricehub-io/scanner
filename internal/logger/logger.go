@@ -14,6 +14,5 @@ func Init() *zap.Logger {
 
 	zap.ReplaceGlobals(logger)
 
-	logger.Info("Logger initialized")
 	return logger
 }
