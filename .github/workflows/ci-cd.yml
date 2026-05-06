@@ -15,6 +15,9 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Install ClamAV headers
+        run: sudo apt install -y libclamav-dev
+
       - name: Install dependencies
         run: go install golang.org/x/tools/cmd/goimports@latest
 
@@ -37,6 +40,9 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Install ClamAV headers
+        run: sudo apt install -y libclamav-dev
+
       - name: Run go vet
         run: go vet ./...
 
@@ -55,6 +61,9 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Install ClamAV headers
+        run: sudo apt install -y libclamav-dev
+
       - name: Install dependencies
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
 
@@ -72,7 +81,7 @@ jobs:
           cache: true
 
       - name: Install system dependencies
-        run: sudo apt-get install -y libclamav-dev
+        run: sudo apt install -y libclamav-dev
 
       - name: Run tests
         run: go test -v -count=1 -race ./...
@@ -89,8 +98,8 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Install system dependencies
-        run: sudo apt-get install -y libclamav-dev
+      - name: Install ClamAV headers
+        run: sudo apt install -y libclamav-dev
 
       - name: Compile source code
         run: make build
